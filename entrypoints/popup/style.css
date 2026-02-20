@@ -76,6 +76,36 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+#ext-notify-container {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 999999;
+  pointer-events: none;
+  max-width: 360px;
+}
+.ext-notify {
+  pointer-events: auto;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+  font-family: sans-serif;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.ext-notify.show { opacity: 1; transform: translateY(0); }
+.ext-notify.hide { opacity: 0; transform: translateY(-6px); }
+.ext-notify.info { background: #333; }
+.ext-notify.success { background: #2e7d32; }
+.ext-notify.error { background: #c62828; }
+.ext-notify.warn { background: #f57f17; color: #111; }
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;

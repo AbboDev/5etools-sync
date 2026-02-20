@@ -1,5 +1,6 @@
 import { storage } from '#imports';
 import { getAuthToken } from '@/utils/drive';
+import { showMessage } from './notify';
 
 export async function setupAuth(element: HTMLButtonElement) {
   let token: string | null = await storage.getItem('local:token');
@@ -19,7 +20,7 @@ export async function setupAuth(element: HTMLButtonElement) {
       await storage.removeItem('local:token');
       token = null;
       setButtonText();
-      alert("Logged out successfully!");
+      showMessage("Logged out successfully!", 'success');
       return;
     }
 
@@ -32,9 +33,9 @@ export async function setupAuth(element: HTMLButtonElement) {
 
       setButtonText();
 
-      alert("Authenticated successfully!");
+      showMessage("Authenticated successfully!", 'success');
     } catch (error) {
-      alert(`Authentication failed! Please try again. Error: ${error instanceof Error ? error.message : String(error)}`);
+      showMessage(`Authentication failed! Please try again. Error: ${error instanceof Error ? error.message : String(error)}`, 'error');
       console.error("Authentication error:", error);
     }
   };

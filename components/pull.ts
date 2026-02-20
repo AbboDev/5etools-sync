@@ -1,5 +1,6 @@
 import { storage } from '#imports';
 import { findFile, downloadFile } from '@/utils/drive';
+import { showMessage } from './notify';
 
 export async function setupPull(element: HTMLButtonElement) {
   let token: string | null = await storage.getItem('local:token');
@@ -12,27 +13,27 @@ export async function setupPull(element: HTMLButtonElement) {
     token = await storage.getItem('local:token');
 
     if (!token) {
-      alert("Please authenticate first!");
+      showMessage("Please authenticate first!", 'error');
       return;
     }
 
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
     if (!tab?.id) {
-      alert("No active tab found!");
+      showMessage("No active tab found!", 'error');
       return;
     }
 
     const file = await findFile(token);
     if (!file) {
-      alert("No file found in the Cloud!");
+      showMessage("No file found in the Cloud!", 'warn');
       return;
     }
 
     const state = await downloadFile(token, file?.id);
 
     if (!state) {
-      alert("Failed to retrieve state from the Cloud!");
+      showMessage("Failed to retrieve state from the Cloud!", 'error');
       return;
     }
 
@@ -52,7 +53,7 @@ export async function setupPull(element: HTMLButtonElement) {
       args: [state]
     });
 
-    alert("Loaded successfully!");
+    showMessage("Loaded successfully!", 'success');
   };
 
   setButtonState(token);

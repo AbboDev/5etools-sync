@@ -1,5 +1,6 @@
 import { storage } from '#imports';
 import { findFile, uploadFile } from '@/utils/drive';
+import { showMessage } from './notify';
 
 export async function setupPush(element: HTMLButtonElement) {
   let token: string | null = await storage.getItem('local:token');
@@ -12,14 +13,14 @@ export async function setupPush(element: HTMLButtonElement) {
     token = await storage.getItem('local:token');
 
     if (!token) {
-      alert("Please authenticate first!");
+      showMessage("Please authenticate first!", 'error');
       return;
     }
 
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
     if (!tab?.id) {
-      alert("No active tab found!");
+      showMessage("No active tab found!", 'error');
       return;
     }
 
@@ -29,7 +30,7 @@ export async function setupPush(element: HTMLButtonElement) {
     });
 
     if (!result) {
-      alert("Failed to retrieve data from the active tab!");
+      showMessage("Failed to retrieve data from the active tab!", 'error');
       return;
     }
 
@@ -37,7 +38,7 @@ export async function setupPush(element: HTMLButtonElement) {
     const response = await uploadFile(token, result, file?.id);
     console.info("Upload response:", JSON.stringify(response));
 
-    alert("Saved successfully!");
+    showMessage("Saved successfully!", 'success');
   };
 
   setButtonState(token);
