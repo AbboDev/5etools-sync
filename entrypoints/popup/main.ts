@@ -1,24 +1,20 @@
 import './style.css';
-import typescriptLogo from '@/assets/typescript.svg';
-import wxtLogo from '/wxt.svg';
-import { setupCounter } from '@/components/counter';
+import { setupAuth } from '@/components/auth';
+import { setupPush } from '@/components/push';
+import { setupPull } from '@/components/pull';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
-    <a href="https://wxt.dev" target="_blank">
-      <img src="${wxtLogo}" class="logo" alt="WXT logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>WXT + TypeScript</h1>
+    <h1>5e.tools Sync</h1>
+
     <div class="card">
-      <button id="counter" type="button"></button>
+      <button id="auth" type="button">Login Google</button>
+      <button id="push" type="button">Save</button>
+      <button id="pull" type="button">Load</button>
     </div>
-    <p class="read-the-docs">
-      Click on the WXT and TypeScript logos to learn more
-    </p>
   </div>
 `;
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!);
+setupAuth(document.querySelector<HTMLButtonElement>('#auth')!);
+setupPush(document.querySelector<HTMLButtonElement>('#push')!);
+setupPull(document.querySelector<HTMLButtonElement>('#pull')!);
