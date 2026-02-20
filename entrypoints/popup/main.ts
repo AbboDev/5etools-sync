@@ -5,9 +5,9 @@ import { setupPull } from '@/components/pull';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
-    <h1>5e.tools Sync</h1>
+    <h1>5e<span>tools.</span> Sync 🔄</h1>
 
-    <div class="card">
+    <div class="flex">
       <button id="auth" type="button">Login Google</button>
       <button id="push" type="button">Save</button>
       <button id="pull" type="button">Load</button>
