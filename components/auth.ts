@@ -1,12 +1,36 @@
 import { storage } from '#imports';
 import { getAuthToken } from '@/utils/drive';
 
-export function setupAuth(element: HTMLButtonElement) {
-  const setAuth = async () => {
-    try {
-      const token = await getAuthToken();
+export async function setupAuth(element: HTMLButtonElement) {
+  let token: string | null = await storage.getItem('local:token');
 
-      await storage.setItem('local:token', token);
+  const setButtonText = () => {
+    if (token) {
+      element.textContent = "Logout Google";
+    } else {
+      element.textContent = "Login Google";
+    }
+  }
+
+  setButtonText();
+
+  const authenticate = async () => {
+    if (token) {
+      await storage.removeItem('local:token');
+      token = null;
+      setButtonText();
+      alert("Logged out successfully!");
+      return;
+    }
+
+    try {
+      const newToken = await getAuthToken();
+
+      await storage.setItem('local:token', newToken);
+
+      token = newToken;
+
+      setButtonText();
 
       alert("Authenticated successfully!");
     } catch (error) {
@@ -15,5 +39,5 @@ export function setupAuth(element: HTMLButtonElement) {
     }
   };
 
-  element.addEventListener('click', () => setAuth());
+  element.addEventListener('click', () => authenticate());
 }

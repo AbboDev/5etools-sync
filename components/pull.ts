@@ -1,9 +1,15 @@
 import { storage } from '#imports';
 import { findFile, downloadFile } from '@/utils/drive';
 
-export function setupPull(element: HTMLButtonElement) {
-  const setPull = async () => {
-    const token: string | null = await storage.getItem('local:token');
+export async function setupPull(element: HTMLButtonElement) {
+  let token: string | null = await storage.getItem('local:token');
+
+  const setButtonState = (token: string | null) => {
+    element.disabled = !token;
+  }
+
+  const pullData = async () => {
+    token = await storage.getItem('local:token');
 
     if (!token) {
       alert("Please authenticate first!");
@@ -49,5 +55,10 @@ export function setupPull(element: HTMLButtonElement) {
     alert("Loaded successfully!");
   };
 
-  element.addEventListener('click', () => setPull());
+  setButtonState(token);
+  storage.watch<string | null>('local:token', (token) => {
+    setButtonState(token);
+  });
+
+  element.addEventListener('click', () => pullData());
 }

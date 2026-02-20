@@ -1,9 +1,15 @@
 import { storage } from '#imports';
 import { findFile, uploadFile } from '@/utils/drive';
 
-export function setupPush(element: HTMLButtonElement) {
-  const setPush = async () => {
-    const token: string | null = await storage.getItem('local:token');
+export async function setupPush(element: HTMLButtonElement) {
+  let token: string | null = await storage.getItem('local:token');
+
+  const setButtonState = (token: string | null) => {
+    element.disabled = !token;
+  }
+
+  const pushData = async () => {
+    token = await storage.getItem('local:token');
 
     if (!token) {
       alert("Please authenticate first!");
@@ -34,5 +40,10 @@ export function setupPush(element: HTMLButtonElement) {
     alert("Saved successfully!");
   };
 
-  element.addEventListener('click', () => setPush());
+  setButtonState(token);
+  storage.watch<string | null>('local:token', (token) => {
+    setButtonState(token);
+  });
+
+  element.addEventListener('click', () => pushData());
 }

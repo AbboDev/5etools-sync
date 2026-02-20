@@ -9,8 +9,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
     <div class="flex">
       <button id="auth" type="button">Login Google</button>
-      <button id="push" type="button">Save</button>
-      <button id="pull" type="button">Load</button>
+      <button id="push" type="button" disabled>Save</button>
+      <button id="pull" type="button" disabled>Load</button>
     </div>
   </div>
 `;
