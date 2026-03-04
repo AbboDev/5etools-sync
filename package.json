@@ -1,8 +1,7 @@
 {
-  "name": "wxt-starter",
-  "description": "manifest.json description",
-  "private": true,
-  "version": "0.0.0",
+  "name": "5etools-sync",
+  "description": "Multi-browser extension for cloud storage import/export",
+  "version": "0.1.0",
   "type": "module",
   "engines": {
     "node": ">=22.22.0"
@@ -12,8 +11,10 @@
     "dev:firefox": "wxt -b firefox",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
+    "build:all": "wxt build && wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "zip:all": "wxt zip && wxt zip -b firefox",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare"
   },
