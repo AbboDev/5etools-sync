@@ -2,12 +2,18 @@ import '#imports';
 import './style.css';
 import { onMessage, sendMessage } from '@/messaging';
 import type { CloudProviderType } from '@/types/cloud';
+import { contentInjectedMessaging } from '@/messaging/contentInjectedMessaging';
 
 export default defineContentScript({
   matches: ['*://*.5e.tools/*'],
 
-  main() {
-    const activeProvider: CloudProviderType = 'google_drive';
+  async main() {
+    // ── Init ─────────────────────────────────────────────────────────────
+
+    // Inject the script into the MAIN world so it can access window.NavBar
+    await injectScript('/inject.js', {
+      keepInDom: true,
+    });
 
     // ── Toast ─────────────────────────────────────────────────────────────
 
@@ -80,135 +86,83 @@ export default defineContentScript({
       });
     }
 
-    // ── Widget helpers ────────────────────────────────────────────────────
+    // ── Content Messaging Handlers ────────────────────────────────────────
 
-    function setLoading(btn: HTMLButtonElement, loading: boolean, restoreHTML?: string): void {
-      btn.disabled = loading;
-      if (loading) {
-        btn.innerHTML = `<div class="cse-spinner"></div><span>Loading…</span>`;
-      } else if (restoreHTML !== undefined) {
-        btn.innerHTML = restoreHTML;
-      }
-    }
-
-    // ── Widget build ──────────────────────────────────────────────────────
-
-    async function createWidget(): Promise<void> {
-      if (document.getElementById('cse-widget')) return;
-      let isAuthenticated = false;
+    async function ensureAuth(provider: CloudProviderType): Promise<boolean> {
       try {
-        const state = await sendMessage('authGetState', activeProvider);
-        isAuthenticated = state.isAuthenticated;
+        const state = await sendMessage('authGetState', provider);
+        if (state.isAuthenticated) return true;
       } catch {
-        // background not ready yet — show login button
+        // failed to get state
       }
 
-      const widget = document.createElement('div');
-      widget.id = 'cse-widget';
-
-      // Login button (unauthenticated only)
-      if (!isAuthenticated) {
-        const loginHTML = `<span>Login to Drive</span>`;
-        const loginBtn = document.createElement('button');
-        loginBtn.className = 'cse-btn cse-btn--auth';
-        loginBtn.innerHTML = loginHTML;
-        loginBtn.addEventListener('click', async () => {
-          setLoading(loginBtn, true);
-          try {
-            await sendMessage('authLogin', activeProvider);
-            showToast('✓ Logged in!', 'success');
-            widget.remove();
-            await createWidget();
-          } catch (err) {
-            showToast(`Login failed: ${(err as Error).message}`, 'error');
-            setLoading(loginBtn, false, loginHTML);
-          }
-        });
-        widget.appendChild(loginBtn);
+      try {
+        const state = await sendMessage('authLogin', provider);
+        if (state.isAuthenticated) {
+          showToast('✓ Logged in!', 'success');
+          return true;
+        }
+      } catch (err) {
+        showToast(`Login failed: ${(err as Error).message}`, 'error');
       }
-
-      // Export button
-      const exportHTML = `<span>Export JSON</span>`;
-      const exportBtn = document.createElement('button');
-      exportBtn.className = 'cse-btn cse-btn--export';
-      exportBtn.innerHTML = exportHTML;
-      exportBtn.disabled = !isAuthenticated;
-      exportBtn.addEventListener('click', async () => {
-        setLoading(exportBtn, true);
-        try {
-          const result = await sendMessage('exportJson', {
-            provider: activeProvider,
-            fileName: `export_${Date.now().toString()}.json`,
-            // TODO: replace payload with real page data
-            data: {
-              url: location.href,
-              title: document.title,
-              exportedAt: new Date().toISOString(),
-            },
-          });
-          showToast(`✓ Exported: ${result.fileName}`, 'success');
-        } catch (err) {
-          showToast(`Export failed: ${(err as Error).message}`, 'error');
-        } finally {
-          setLoading(exportBtn, false, exportHTML);
-        }
-      });
-
-      // Import button
-      const importHTML = `<span>Import JSON</span>`;
-      const importBtn = document.createElement('button');
-      importBtn.className = 'cse-btn cse-btn--import';
-      importBtn.innerHTML = importHTML;
-      importBtn.disabled = !isAuthenticated;
-      importBtn.addEventListener('click', async () => {
-        setLoading(importBtn, true);
-        let files: { id: string; name: string; modifiedAt: string }[] = [];
-        try {
-          files = await sendMessage('listFiles', activeProvider);
-        } catch (err) {
-          showToast(`Could not list files: ${(err as Error).message}`, 'error');
-          setLoading(importBtn, false, importHTML);
-          return;
-        }
-        setLoading(importBtn, false, importHTML);
-
-        const fileId = await showFilePicker(files);
-        if (!fileId) return;
-
-        setLoading(importBtn, true);
-        try {
-          const data = await sendMessage('importJson', {
-            provider: activeProvider,
-            fileId,
-          });
-          // Dispatch a DOM event so the host page can consume the data
-          document.dispatchEvent(new CustomEvent('cse:import', { detail: data, bubbles: true }));
-          showToast('✓ Import complete — cse:import event dispatched', 'success', 4000);
-        } catch (err) {
-          showToast(`Import failed: ${(err as Error).message}`, 'error');
-        } finally {
-          setLoading(importBtn, false, importHTML);
-        }
-      });
-
-      widget.appendChild(exportBtn);
-      widget.appendChild(importBtn);
-      document.body.appendChild(widget);
+      return false;
     }
+
+    contentInjectedMessaging.onMessage('exportData', async ({ data }) => {
+      const { dump, source } = data;
+      const activeProvider = (source === 'drive' ? 'google_drive' : source) as CloudProviderType;
+
+      const isAuthenticated = await ensureAuth(activeProvider);
+      if (!isAuthenticated) return;
+
+      showToast(`Exporting to ${source}...`, 'info', 2000);
+      try {
+        const result = await sendMessage('exportJson', {
+          provider: activeProvider,
+          fileName: `export_${Date.now().toString()}.json`,
+          data: dump,
+        });
+        showToast(`✓ Exported: ${result.fileName}`, 'success');
+      } catch (err) {
+        showToast(`Export failed: ${(err as Error).message}`, 'error');
+      }
+    });
+
+    contentInjectedMessaging.onMessage('importData', async ({ data: source }) => {
+      const activeProvider = (source === 'drive' ? 'google_drive' : source) as CloudProviderType;
+
+      const isAuthenticated = await ensureAuth(activeProvider);
+      if (!isAuthenticated) return null;
+
+      let files: { id: string; name: string; modifiedAt: string }[] = [];
+      try {
+        files = await sendMessage('listFiles', activeProvider);
+      } catch (err) {
+        showToast(`Could not list files: ${(err as Error).message}`, 'error');
+        return null;
+      }
+
+      const fileId = await showFilePicker(files);
+      if (!fileId) return null;
+
+      showToast('Importing...', 'info', 2000);
+      try {
+        const data = await sendMessage('importJson', {
+          provider: activeProvider,
+          fileId,
+        });
+        showToast('✓ Import complete', 'success', 4000);
+        return data;
+      } catch (err) {
+        showToast(`Import failed: ${(err as Error).message}`, 'error');
+        throw err;
+      }
+    });
 
     // ── Listen for auth state changes broadcast from popup ────────────────
 
     onMessage('authStateChanged', () => {
-      document.getElementById('cse-widget')?.remove();
-      void createWidget();
+      // Background auth state changed, log context if needed.
     });
-
-    // ── Init ─────────────────────────────────────────────────────────────
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => void createWidget());
-    } else {
-      void createWidget();
-    }
   },
 });

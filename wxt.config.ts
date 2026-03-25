@@ -34,5 +34,11 @@ export default defineConfig({
         'https://www.googleapis.com/auth/userinfo.profile',
       ],
     },
+    web_accessible_resources: [
+      {
+        resources: ['inject.js'],
+        matches: ['*://*.5e.tools/*'],
+      },
+    ],
   }),
 });
