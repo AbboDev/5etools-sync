@@ -1,100 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cloud Storage Sync</title>
-  <link rel="stylesheet" href="popup.css" />
-</head>
-<body>
-  <div id="app">
-
-    <!-- Header -->
-    <header class="header">
-      <div class="header__logo">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z" fill="currentColor"/>
-        </svg>
-        <span class="header__title">Cloud Storage Sync</span>
-      </div>
-      <div class="header__version">v1.0</div>
-    </header>
-
-    <!-- Provider selector tabs -->
-    <nav class="provider-tabs" id="provider-tabs">
-      <!-- Populated by popup.ts -->
-    </nav>
-
-    <!-- Auth card -->
-    <section class="auth-card" id="auth-card">
-      <div class="auth-card__user" id="user-info" hidden>
-        <img class="auth-card__avatar" id="user-avatar" src="" alt="avatar" />
-        <div class="auth-card__details">
-          <span class="auth-card__name" id="user-name"></span>
-          <span class="auth-card__email" id="user-email"></span>
-        </div>
-        <button class="btn btn--ghost btn--sm" id="btn-logout">Logout</button>
-      </div>
-
-      <div class="auth-card__login" id="login-info">
-        <div class="auth-card__provider-icon" id="provider-icon"></div>
-        <p class="auth-card__prompt">Sign in to sync your data</p>
-        <button class="btn btn--primary" id="btn-login">
-          <span class="btn__icon" id="login-btn-icon"></span>
-          Connect <span id="login-provider-name">Google Drive</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- Actions -->
-    <section class="actions" id="actions-section">
-      <h2 class="actions__title">Actions</h2>
-
-      <div class="action-row">
-        <div class="action-row__info">
-          <span class="action-row__label">Export JSON</span>
-          <span class="action-row__desc">Upload current page data</span>
-        </div>
-        <button class="btn btn--primary btn--sm" id="btn-export" disabled>
-          <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>5eTools Sync</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header -->
+      <header class="header">
+        <div class="header__logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"
+              fill="currentColor"
+            />
           </svg>
-          Export
-        </button>
-      </div>
-
-      <div class="action-row">
-        <div class="action-row__info">
-          <span class="action-row__label">Import JSON</span>
-          <span class="action-row__desc">Load data from cloud</span>
+          <span class="header__title">5eTools Sync</span>
         </div>
-        <button class="btn btn--secondary btn--sm" id="btn-import" disabled>
-          <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14l-4-4h3V9h2v4h3l-4 4z"/>
-          </svg>
-          Import
-        </button>
-      </div>
-    </section>
+        <div class="header__version">v1.0</div>
+      </header>
 
-    <!-- Status bar -->
-    <div class="status-bar" id="status-bar" hidden>
-      <div class="status-bar__spinner" id="status-spinner" hidden></div>
-      <span class="status-bar__text" id="status-text"></span>
+      <!-- Provider selector tabs -->
+      <nav class="provider-tabs" id="provider-tabs">
+        <!-- Populated by popup.ts -->
+      </nav>
+
+      <!-- Auth card -->
+      <section class="auth-card" id="auth-card">
+        <div class="auth-card__user" id="user-info" hidden>
+          <img class="auth-card__avatar" id="user-avatar" src="" alt="avatar" />
+          <div class="auth-card__details">
+            <span class="auth-card__name" id="user-name"></span>
+            <span class="auth-card__email" id="user-email"></span>
+          </div>
+          <button class="btn btn--ghost btn--sm" id="btn-logout">Logout</button>
+        </div>
+
+        <div class="auth-card__login" id="login-info">
+          <div class="auth-card__provider-icon" id="provider-icon"></div>
+          <p class="auth-card__prompt">Sign in to sync your data</p>
+          <button class="btn btn--primary" id="btn-login">
+            <span class="btn__icon" id="login-btn-icon"></span>
+            Connect <span id="login-provider-name">Google Drive</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Actions -->
+      <section class="actions" id="actions-section">
+        <h2 class="actions__title">Actions</h2>
+
+        <div class="action-row">
+          <div class="action-row__info">
+            <span class="action-row__label">Export JSON</span>
+            <span class="action-row__desc">Upload current page data</span>
+          </div>
+          <button class="btn btn--primary btn--sm" id="btn-export" disabled>
+            <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+            </svg>
+            Export
+          </button>
+        </div>
+
+        <div class="action-row">
+          <div class="action-row__info">
+            <span class="action-row__label">Import JSON</span>
+            <span class="action-row__desc">Load data from cloud</span>
+          </div>
+          <button class="btn btn--secondary btn--sm" id="btn-import" disabled>
+            <svg class="btn__icon" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14l-4-4h3V9h2v4h3l-4 4z"
+              />
+            </svg>
+            Import
+          </button>
+        </div>
+      </section>
+
+      <!-- Status bar -->
+      <div class="status-bar" id="status-bar" hidden>
+        <div class="status-bar__spinner" id="status-spinner" hidden></div>
+        <span class="status-bar__text" id="status-text"></span>
+      </div>
+
+      <!-- File picker (import) -->
+      <section class="file-picker" id="file-picker" hidden>
+        <div class="file-picker__header">
+          <h3>Select file to import</h3>
+          <button class="btn btn--ghost btn--sm" id="file-picker-close">✕</button>
+        </div>
+        <div class="file-picker__list" id="file-list">
+          <div class="file-picker__loading">Loading files…</div>
+        </div>
+      </section>
     </div>
-
-    <!-- File picker (import) -->
-    <section class="file-picker" id="file-picker" hidden>
-      <div class="file-picker__header">
-        <h3>Select file to import</h3>
-        <button class="btn btn--ghost btn--sm" id="file-picker-close">✕</button>
-      </div>
-      <div class="file-picker__list" id="file-list">
-        <div class="file-picker__loading">Loading files…</div>
-      </div>
-    </section>
-
-  </div>
-  <script type="module" src="popup.ts"></script>
-</body>
+    <script type="module" src="popup.ts"></script>
+  </body>
 </html>
