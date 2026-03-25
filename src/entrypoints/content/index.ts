@@ -82,12 +82,6 @@ export default defineContentScript({
 
     // ── Widget helpers ────────────────────────────────────────────────────
 
-    const ICON_SMALL = `<svg class="cse-icon" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#fff"/>
-      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#fff"/>
-      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#fff"/>
-    </svg>`;
-
     function setLoading(btn: HTMLButtonElement, loading: boolean, restoreHTML?: string): void {
       btn.disabled = loading;
       if (loading) {
@@ -114,7 +108,7 @@ export default defineContentScript({
 
       // Login button (unauthenticated only)
       if (!isAuthenticated) {
-        const loginHTML = `${ICON_SMALL}<span>Login to Drive</span>`;
+        const loginHTML = `<span>Login to Drive</span>`;
         const loginBtn = document.createElement('button');
         loginBtn.className = 'cse-btn cse-btn--auth';
         loginBtn.innerHTML = loginHTML;
@@ -134,7 +128,7 @@ export default defineContentScript({
       }
 
       // Export button
-      const exportHTML = `${ICON_SMALL}<span>Export JSON</span>`;
+      const exportHTML = `<span>Export JSON</span>`;
       const exportBtn = document.createElement('button');
       exportBtn.className = 'cse-btn cse-btn--export';
       exportBtn.innerHTML = exportHTML;
@@ -161,7 +155,7 @@ export default defineContentScript({
       });
 
       // Import button
-      const importHTML = `${ICON_SMALL}<span>Import JSON</span>`;
+      const importHTML = `<span>Import JSON</span>`;
       const importBtn = document.createElement('button');
       importBtn.className = 'cse-btn cse-btn--import';
       importBtn.innerHTML = importHTML;
