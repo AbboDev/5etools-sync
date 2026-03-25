@@ -3,7 +3,7 @@ import { onMessage, sendMessage } from '@/messaging';
 import type { CloudProviderType } from '@/types/cloud';
 
 export default defineContentScript({
-  matches: ['<all_urls>'],
+  matches: ['*://*.5e.tools/*'],
 
   main() {
     const activeProvider: CloudProviderType = 'google_drive';
