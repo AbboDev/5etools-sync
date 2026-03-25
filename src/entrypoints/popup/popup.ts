@@ -1,61 +1,38 @@
 import '#imports';
-import type {
-  AuthState,
-  CloudFile,
-  CloudProviderType,
-  ExtensionMessage,
-  MessageResponse,
-} from '@/types/cloud';
+import { sendMessage } from '@/messaging';
+import type { ProviderMeta } from '@/messaging';
+import type { AuthState, CloudFile, CloudProviderType } from '@/types/cloud';
 
-// ─── Messaging ────────────────────────────────────────────────────────────────
+// ─── DOM helpers ──────────────────────────────────────────────────────────────
 
-function sendMsg<T = unknown>(message: ExtensionMessage): Promise<T> {
-  return new Promise((resolve, reject) => {
-    browser.runtime.sendMessage(message, (response: MessageResponse<T>) => {
-      if (browser.runtime.lastError) {
-        reject(new Error(browser.runtime.lastError.message));
-        return;
-      }
-      if (!response?.success) {
-        reject(new Error(response?.error ?? 'Unknown error'));
-        return;
-      }
-      resolve(response.data as T);
-    });
-  });
-}
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+const $ = <T extends HTMLElement>(sel: string): T => document.querySelector<T>(sel)!;
 
-// ─── DOM helpers ─────────────────────────────────────────────────────────────
-
-const $ = <T extends Element>(sel: string) => document.querySelector<T>(sel)!;
-
-const providerTabs    = $('#provider-tabs');
-const userInfo        = $('#user-info');
-const loginInfo       = $('#login-info');
-const userAvatar      = $<HTMLImageElement>('#user-avatar');
-const userName        = $('#user-name');
-const userEmail       = $('#user-email');
-const btnLogin        = $<HTMLButtonElement>('#btn-login');
-const btnLogout       = $<HTMLButtonElement>('#btn-logout');
-const loginBtnIcon    = $('#login-btn-icon');
-const loginProvName   = $('#login-provider-name');
-const providerIcon    = $('#provider-icon');
-const btnExport       = $<HTMLButtonElement>('#btn-export');
-const btnImport       = $<HTMLButtonElement>('#btn-import');
-const statusBar       = $('#status-bar');
-const statusSpinner   = $<HTMLElement>('#status-spinner');
-const statusText      = $('#status-text');
-const filePicker      = $('#file-picker');
+const providerTabs = $('#provider-tabs');
+const userInfo = $<HTMLDivElement>('#user-info');
+const loginInfo = $<HTMLDivElement>('#login-info');
+const userAvatar = $<HTMLImageElement>('#user-avatar');
+const userName = $<HTMLHeadingElement>('#user-name');
+const userEmail = $<HTMLParagraphElement>('#user-email');
+const btnLogin = $<HTMLButtonElement>('#btn-login');
+const btnLogout = $<HTMLButtonElement>('#btn-logout');
+const loginBtnIcon = $('#login-btn-icon');
+const loginProvName = $('#login-provider-name');
+const providerIcon = $('#provider-icon');
+const btnExport = $<HTMLButtonElement>('#btn-export');
+const btnImport = $<HTMLButtonElement>('#btn-import');
+const statusBar = $<HTMLDivElement>('#status-bar');
+const statusSpinner = $<HTMLElement>('#status-spinner');
+const statusText = $('#status-text');
+const filePicker = $<HTMLDivElement>('#file-picker');
 const filePickerClose = $<HTMLButtonElement>('#file-picker-close');
-const fileList        = $('#file-list');
+const fileList = $('#file-list');
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-interface ProviderMeta { type: CloudProviderType; displayName: string; icon: string }
-
-let providers: ProviderMeta[]   = [];
+let providers: ProviderMeta[] = [];
 let activeProvider: CloudProviderType = 'google_drive';
-let authState: AuthState        = { isAuthenticated: false, provider: null };
+let authState: AuthState = { isAuthenticated: false, provider: null };
 
 // ─── Status bar ───────────────────────────────────────────────────────────────
 
@@ -63,16 +40,22 @@ function setStatus(
   message: string,
   type: 'info' | 'success' | 'error' = 'info',
   loading = false,
-  duration?: number
+  duration?: number,
 ): void {
   statusBar.hidden = false;
   statusBar.className = `status-bar ${type}`;
   statusText.textContent = message;
   statusSpinner.hidden = !loading;
-  if (duration) setTimeout(() => { statusBar.hidden = true; }, duration);
+  if (duration !== undefined) {
+    setTimeout(() => {
+      statusBar.hidden = true;
+    }, duration);
+  }
 }
 
-function clearStatus(): void { statusBar.hidden = true; }
+function clearStatus(): void {
+  statusBar.hidden = true;
+}
 
 // ─── Provider tabs ────────────────────────────────────────────────────────────
 
@@ -80,7 +63,7 @@ function renderProviderTabs(): void {
   providerTabs.innerHTML = '';
   providers.forEach((p) => {
     const isActive = p.type === activeProvider;
-    const isReady  = p.type === 'google_drive';
+    const isReady = p.type === 'google_drive';
     const btn = document.createElement('button');
     btn.className = `provider-tab${isActive ? ' active' : ''}${!isReady ? ' disabled' : ''}`;
     btn.innerHTML = `
@@ -88,7 +71,9 @@ function renderProviderTabs(): void {
       ${p.displayName}
       ${!isReady ? '<span class="badge">soon</span>' : ''}`;
     btn.title = isReady ? p.displayName : `${p.displayName} — coming soon`;
-    if (isReady) btn.addEventListener('click', () => switchProvider(p.type));
+    if (isReady) {
+      btn.addEventListener('click', () => void switchProvider(p.type));
+    }
     providerTabs.appendChild(btn);
   });
 }
@@ -100,17 +85,17 @@ function renderAuthCard(): void {
   if (!meta) return;
 
   if (authState.isAuthenticated) {
-    userInfo.hidden  = false;
+    userInfo.hidden = false;
     loginInfo.hidden = true;
-    userAvatar.src   = authState.userAvatar ?? '';
+    userAvatar.src = authState.userAvatar ?? '';
     userAvatar.hidden = !authState.userAvatar;
-    userName.textContent  = authState.userName  ?? '';
+    userName.textContent = authState.userName ?? '';
     userEmail.textContent = authState.userEmail ?? '';
   } else {
-    userInfo.hidden  = true;
+    userInfo.hidden = true;
     loginInfo.hidden = false;
-    providerIcon.innerHTML  = meta.icon;
-    loginBtnIcon.innerHTML  = meta.icon;
+    providerIcon.innerHTML = meta.icon;
+    loginBtnIcon.innerHTML = meta.icon;
     loginProvName.textContent = meta.displayName;
   }
 
@@ -125,7 +110,7 @@ async function switchProvider(type: CloudProviderType): Promise<void> {
   renderProviderTabs();
   clearStatus();
   try {
-    authState = await sendMsg<AuthState>({ type: 'AUTH_GET_STATE', provider: activeProvider });
+    authState = await sendMessage('authGetState', activeProvider);
   } catch {
     authState = { isAuthenticated: false, provider: null };
   }
@@ -134,74 +119,84 @@ async function switchProvider(type: CloudProviderType): Promise<void> {
 
 // ─── Login / Logout ───────────────────────────────────────────────────────────
 
-btnLogin.addEventListener('click', async () => {
-  btnLogin.disabled = true;
-  setStatus('Connecting…', 'info', true);
-  try {
-    authState = await sendMsg<AuthState>({ type: 'AUTH_LOGIN', provider: activeProvider });
-    renderAuthCard();
-    setStatus(`Signed in as ${authState.userEmail}`, 'success', false, 3000);
-  } catch (err) {
-    setStatus(`Login failed: ${(err as Error).message}`, 'error', false, 5000);
-  } finally {
-    btnLogin.disabled = false;
-  }
+btnLogin.addEventListener('click', () => {
+  void (async () => {
+    btnLogin.disabled = true;
+    setStatus('Connecting…', 'info', true);
+    try {
+      authState = await sendMessage('authLogin', activeProvider);
+      renderAuthCard();
+      // Notify content scripts in all tabs that auth changed
+      const tabs = await browser.tabs.query({});
+      await Promise.allSettled(
+        tabs
+          .filter((t) => t.id !== undefined)
+          .map((t) => sendMessage('authStateChanged', activeProvider, t.id)),
+      );
+      setStatus(`Signed in as ${authState.userEmail ?? ''}`, 'success', false, 3000);
+    } catch (err) {
+      setStatus(`Login failed: ${(err as Error).message}`, 'error', false, 5000);
+    } finally {
+      btnLogin.disabled = false;
+    }
+  })();
 });
 
-btnLogout.addEventListener('click', async () => {
-  btnLogout.disabled = true;
-  setStatus('Signing out…', 'info', true);
-  try {
-    await sendMsg({ type: 'AUTH_LOGOUT', provider: activeProvider });
-    authState = { isAuthenticated: false, provider: null };
-    renderAuthCard();
-    clearStatus();
-  } catch (err) {
-    setStatus(`Logout failed: ${(err as Error).message}`, 'error', false, 5000);
-  } finally {
-    btnLogout.disabled = false;
-  }
+btnLogout.addEventListener('click', () => {
+  void (async () => {
+    btnLogout.disabled = true;
+    setStatus('Signing out…', 'info', true);
+    try {
+      await sendMessage('authLogout', activeProvider);
+      authState = { isAuthenticated: false, provider: null };
+      renderAuthCard();
+      clearStatus();
+    } catch (err) {
+      setStatus(`Logout failed: ${(err as Error).message}`, 'error', false, 5000);
+    } finally {
+      btnLogout.disabled = false;
+    }
+  })();
 });
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-btnExport.addEventListener('click', async () => {
-  btnExport.disabled = true;
-  setStatus('Exporting…', 'info', true);
-  try {
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    const data = {
-      url:        tab?.url   ?? '',
-      title:      tab?.title ?? '',
-      exportedAt: new Date().toISOString(),
-      payload:    {} as Record<string, unknown>, // TODO: replace with real data
-    };
-    const result = await sendMsg<{ fileName: string }>({
-      type: 'EXPORT_JSON',
-      provider: activeProvider,
-      payload: { fileName: `export_${Date.now()}.json`, data },
-    });
-    setStatus(`✓ Exported: ${result.fileName}`, 'success', false, 4000);
-  } catch (err) {
-    setStatus(`Export failed: ${(err as Error).message}`, 'error', false, 5000);
-  } finally {
-    btnExport.disabled = false;
-  }
+btnExport.addEventListener('click', () => {
+  void (async () => {
+    btnExport.disabled = true;
+    setStatus('Exporting…', 'info', true);
+    try {
+      const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+      const result = await sendMessage('exportJson', {
+        provider: activeProvider,
+        fileName: `export_${Date.now().toString()}.json`,
+        // TODO: replace with real page data
+        data: { url: tab.url ?? '', title: tab.title ?? '', exportedAt: new Date().toISOString() },
+      });
+      setStatus(`✓ Exported: ${result.fileName}`, 'success', false, 4000);
+    } catch (err) {
+      setStatus(`Export failed: ${(err as Error).message}`, 'error', false, 5000);
+    } finally {
+      btnExport.disabled = false;
+    }
+  })();
 });
 
 // ─── Import ───────────────────────────────────────────────────────────────────
 
-btnImport.addEventListener('click', async () => {
-  btnImport.disabled = true;
-  setStatus('Loading files…', 'info', true);
-  try {
-    const files = await sendMsg<CloudFile[]>({ type: 'LIST_FILES', provider: activeProvider });
-    clearStatus();
-    showFilePicker(files);
-  } catch (err) {
-    setStatus(`Could not load files: ${(err as Error).message}`, 'error', false, 5000);
-    btnImport.disabled = false;
-  }
+btnImport.addEventListener('click', () => {
+  void (async () => {
+    btnImport.disabled = true;
+    setStatus('Loading files…', 'info', true);
+    try {
+      const files = await sendMessage('listFiles', activeProvider);
+      clearStatus();
+      showFilePicker(files);
+    } catch (err) {
+      setStatus(`Could not load files: ${(err as Error).message}`, 'error', false, 5000);
+      btnImport.disabled = false;
+    }
+  })();
 });
 
 function showFilePicker(files: CloudFile[]): void {
@@ -222,7 +217,7 @@ function showFilePicker(files: CloudFile[]): void {
         <div class="file-item__name">${f.name}</div>
         <div class="file-item__meta">${new Date(f.modifiedAt).toLocaleString()}</div>
       </div>`;
-    item.addEventListener('click', () => importFile(f.id, f.name));
+    item.addEventListener('click', () => void importFile(f.id, f.name));
     fileList.appendChild(item);
   });
 }
@@ -236,14 +231,11 @@ async function importFile(fileId: string, fileName: string): Promise<void> {
   filePicker.hidden = true;
   setStatus(`Importing ${fileName}…`, 'info', true);
   try {
-    const data = await sendMsg<Record<string, unknown>>({
-      type: 'IMPORT_JSON',
-      provider: activeProvider,
-      payload: { fileId },
-    });
+    const data = await sendMessage('importJson', { provider: activeProvider, fileId });
+    // Forward imported data to the active tab's content script
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      browser.tabs.sendMessage(tab.id, { type: 'IMPORT_RESULT', data });
+    if (tab.id !== undefined) {
+      await sendMessage('importResult', data, tab.id);
     }
     setStatus(`✓ Imported: ${fileName}`, 'success', false, 4000);
   } catch (err) {
@@ -257,7 +249,7 @@ async function importFile(fileId: string, fileName: string): Promise<void> {
 
 async function init(): Promise<void> {
   try {
-    providers = await sendMsg<ProviderMeta[]>({ type: 'GET_PROVIDERS' });
+    providers = await sendMessage('getProviders', undefined);
   } catch {
     providers = [{ type: 'google_drive', displayName: 'Google Drive', icon: '' }];
   }
@@ -265,4 +257,4 @@ async function init(): Promise<void> {
   await switchProvider(activeProvider);
 }
 
-init();
+void init();

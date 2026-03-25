@@ -26,7 +26,7 @@ import type {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const WEB_CLIENT_ID    = import.meta.env.VITE_GOOGLE_CLIENT_ID_WEB    as string ?? 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+const WEB_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID_WEB as string;
 
 const SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
@@ -88,10 +88,12 @@ async function saveAuth(state: AuthState): Promise<void> {
 
 async function loadAuth(): Promise<AuthState> {
   const result = await browser.storage.local.get(STORAGE_KEY);
-  return (result[STORAGE_KEY] as AuthState | undefined) ?? {
-    isAuthenticated: false,
-    provider: null,
-  };
+  return (
+    (result[STORAGE_KEY] as AuthState | undefined) ?? {
+      isAuthenticated: false,
+      provider: null,
+    }
+  );
 }
 
 // ─── User profile ─────────────────────────────────────────────────────────────
@@ -113,14 +115,13 @@ async function fetchUserProfile(token: string): Promise<{
 async function loginWithGetAuthToken(): Promise<AuthState> {
   const token = await new Promise<string>((resolve, reject) => {
     browser.identity.getAuthToken({ interactive: true }, (t) => {
-      if (browser.runtime.lastError || !t) {
-        reject(new Error(browser.runtime.lastError?.message ?? 'getAuthToken failed'));
+      if (browser.runtime.lastError) {
+        reject(new Error(browser.runtime.lastError.message ?? 'getAuthToken failed'));
       } else {
-        resolve(t);
+        resolve(t as string);
       }
     });
   });
-
   const profile = await fetchUserProfile(token);
   const state: AuthState = {
     isAuthenticated: true,
@@ -138,14 +139,14 @@ async function loginWithGetAuthToken(): Promise<AuthState> {
 async function refreshWithGetAuthToken(oldToken: string): Promise<string> {
   // Remove the stale cached token so Chrome fetches a fresh one
   await new Promise<void>((resolve) => {
-    chrome.identity.removeCachedAuthToken({ token: oldToken }, resolve);
+    browser.identity.removeCachedAuthToken({ token: oldToken }, resolve);
   });
   return new Promise<string>((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive: false }, (t) => {
-      if (chrome.runtime.lastError || !t) {
+    browser.identity.getAuthToken({ interactive: false }, (t) => {
+      if (browser.runtime.lastError) {
         reject(new Error('Silent token refresh failed'));
       } else {
-        resolve(t);
+        resolve(t as string);
       }
     });
   });
@@ -154,32 +155,32 @@ async function refreshWithGetAuthToken(oldToken: string): Promise<string> {
 // ─── Cross-browser: launchWebAuthFlow + PKCE ──────────────────────────────────
 
 async function loginWithWebAuthFlow(): Promise<AuthState> {
-  const codeVerifier  = generateRandomString(64);
+  const codeVerifier = generateRandomString(64);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
-  const state         = generateRandomString(16);
-  const redirectUrl   = browser.identity.getRedirectURL('oauth2');
+  const state = generateRandomString(16);
+  const redirectUrl = browser.identity.getRedirectURL('oauth2');
 
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  authUrl.searchParams.set('client_id',             WEB_CLIENT_ID);
-  authUrl.searchParams.set('response_type',         'code');
-  authUrl.searchParams.set('redirect_uri',          redirectUrl);
-  authUrl.searchParams.set('scope',                 SCOPES.join(' '));
-  authUrl.searchParams.set('state',                 state);
-  authUrl.searchParams.set('code_challenge',        codeChallenge);
+  authUrl.searchParams.set('client_id', WEB_CLIENT_ID);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('redirect_uri', redirectUrl);
+  authUrl.searchParams.set('scope', SCOPES.join(' '));
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
-  authUrl.searchParams.set('access_type',           'offline');
-  authUrl.searchParams.set('prompt',                'consent');
+  authUrl.searchParams.set('access_type', 'offline');
+  authUrl.searchParams.set('prompt', 'consent');
 
-  const responseUrl: string = await browser.identity.launchWebAuthFlow({
+  const responseUrl = (await browser.identity.launchWebAuthFlow({
     url: authUrl.toString(),
     interactive: true,
-  });
+  }))!;
 
-  const url    = new URL(responseUrl);
-  const code   = url.searchParams.get('code');
+  const url = new URL(responseUrl);
+  const code = url.searchParams.get('code');
   const retState = url.searchParams.get('state');
 
-  if (!code)             throw new Error('No authorization code returned');
+  if (!code) throw new Error('No authorization code returned');
   if (retState !== state) throw new Error('OAuth state mismatch — possible CSRF');
 
   // Exchange code for tokens
@@ -188,19 +189,19 @@ async function loginWithWebAuthFlow(): Promise<AuthState> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id:     WEB_CLIENT_ID,
-      redirect_uri:  redirectUrl,
-      grant_type:    'authorization_code',
+      client_id: WEB_CLIENT_ID,
+      redirect_uri: redirectUrl,
+      grant_type: 'authorization_code',
       code_verifier: codeVerifier,
     }).toString(),
   });
 
   if (!tokenRes.ok) {
-    const err = await tokenRes.json().catch(() => ({})) as Record<string, string>;
-    throw new Error(`Token exchange failed: ${err['error_description'] ?? tokenRes.statusText}`);
+    const err = (await tokenRes.json().catch(() => ({}))) as Record<string, string>;
+    throw new Error(`Token exchange failed: ${err.error_description || tokenRes.statusText}`);
   }
 
-  const tokens = await tokenRes.json() as {
+  const tokens = (await tokenRes.json()) as {
     access_token: string;
     refresh_token?: string;
     expires_in: number;
@@ -211,12 +212,12 @@ async function loginWithWebAuthFlow(): Promise<AuthState> {
   const authState: AuthState = {
     isAuthenticated: true,
     provider: 'google_drive',
-    accessToken:  tokens.access_token,
+    accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
-    userEmail:    profile.email,
-    userName:     profile.name,
-    userAvatar:   profile.picture,
-    expiresAt:    Date.now() + tokens.expires_in * 1000,
+    userEmail: profile.email,
+    userName: profile.name,
+    userAvatar: profile.picture,
+    expiresAt: Date.now() + tokens.expires_in * 1000,
   };
   await saveAuth(authState);
   return authState;
@@ -227,15 +228,15 @@ async function refreshAccessToken(refreshToken: string): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id:     WEB_CLIENT_ID,
-      grant_type:    'refresh_token',
+      client_id: WEB_CLIENT_ID,
+      grant_type: 'refresh_token',
       refresh_token: refreshToken,
     }).toString(),
   });
 
   if (!res.ok) throw new Error('Token refresh failed — please login again');
 
-  const data = await res.json() as { access_token: string; expires_in: number };
+  const data = (await res.json()) as { access_token: string; expires_in: number };
   return data.access_token;
 }
 
@@ -247,24 +248,25 @@ export class GoogleDriveProvider implements CloudProvider {
   readonly icon = GDRIVE_ICON;
 
   async login(): Promise<AuthState> {
-    console.info('Starting Google Drive login flow',isChrome());
     return isChrome() ? loginWithGetAuthToken() : loginWithWebAuthFlow();
   }
 
   async logout(): Promise<void> {
     const state = await loadAuth();
-    if (isChrome() && state.accessToken) {
-      await new Promise<void>((resolve) => {
-        chrome.identity.removeCachedAuthToken({ token: state.accessToken! }, resolve);
-      });
+
+    if (state.accessToken) {
+      if (isChrome()) {
+        await browser.identity.removeCachedAuthToken({ token: state.accessToken });
+      } else {
+        // Revoke token on Google's side
+        await fetch(`https://oauth2.googleapis.com/revoke?token=${state.accessToken}`, {
+          method: 'POST',
+        }).catch(() => {
+          /* best-effort */
+        });
+      }
     }
-    if (!isChrome() && state.accessToken) {
-      // Revoke token on Google's side
-      await fetch(
-        `https://oauth2.googleapis.com/revoke?token=${state.accessToken}`,
-        { method: 'POST' }
-      ).catch(() => { /* best-effort */ });
-    }
+
     await saveAuth({ isAuthenticated: false, provider: null });
   }
 
@@ -273,7 +275,7 @@ export class GoogleDriveProvider implements CloudProvider {
     if (!state.isAuthenticated || !state.accessToken) return false;
     try {
       const res = await fetch(
-        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${state.accessToken}`
+        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${state.accessToken}`,
       );
       return res.ok;
     } catch {
@@ -290,11 +292,7 @@ export class GoogleDriveProvider implements CloudProvider {
     const state = await loadAuth();
 
     // Token still fresh (> 60 s remaining)
-    if (
-      state.accessToken &&
-      state.expiresAt &&
-      state.expiresAt - Date.now() > 60_000
-    ) {
+    if (state.accessToken && state.expiresAt && state.expiresAt - Date.now() > 60_000) {
       return state.accessToken;
     }
 
@@ -345,20 +343,19 @@ export class GoogleDriveProvider implements CloudProvider {
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
-      throw new Error(`Upload failed: ${err?.error?.message ?? res.statusText}`);
+      const err = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      throw new Error(`Upload failed: ${err.error?.message ?? res.statusText}`);
     }
 
-    const data = await res.json() as { id: string; name: string; webViewLink?: string };
+    const data = (await res.json()) as { id: string; name: string; webViewLink?: string };
     return { fileId: data.id, fileName: data.name, webViewLink: data.webViewLink };
   }
 
   async downloadFile(fileId: string): Promise<string> {
     const token = await this.getToken();
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!res.ok) throw new Error(`Download failed: ${res.statusText}`);
     return res.text();
   }
@@ -376,17 +373,16 @@ export class GoogleDriveProvider implements CloudProvider {
       pageSize: '50',
     });
 
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     if (!res.ok) throw new Error(`List failed: ${res.statusText}`);
-    const data = await res.json() as {
-      files: Array<{ id: string; name: string; mimeType: string; modifiedTime: string; size?: string }>;
+    const data = (await res.json()) as {
+      files: { id: string; name: string; mimeType: string; modifiedTime: string; size?: string }[];
     };
 
-    return (data.files ?? []).map((f) => ({
+    return data.files.map((f) => ({
       id: f.id,
       name: f.name,
       mimeType: f.mimeType,

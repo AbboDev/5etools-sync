@@ -56,6 +56,7 @@ export default tseslint.config(
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
 

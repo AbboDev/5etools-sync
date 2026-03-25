@@ -23,7 +23,6 @@ import type {
   UploadResult,
 } from '@/types/cloud';
 
-const _ONEDRIVE_CLIENT_ID = import.meta.env.VITE_ONEDRIVE_CLIENT_ID as string ?? '';
 const STORAGE_KEY = 'auth_onedrive';
 
 const ONEDRIVE_ICON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -32,10 +31,12 @@ const ONEDRIVE_ICON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/sv
 
 async function loadAuth(): Promise<AuthState> {
   const result = await browser.storage.local.get(STORAGE_KEY);
-  return (result[STORAGE_KEY] as AuthState | undefined) ?? {
-    isAuthenticated: false,
-    provider: null,
-  };
+  return (
+    (result[STORAGE_KEY] as AuthState | undefined) ?? {
+      isAuthenticated: false,
+      provider: null,
+    }
+  );
 }
 
 async function saveAuth(state: AuthState): Promise<void> {
@@ -47,9 +48,10 @@ export class OneDriveProvider implements CloudProvider {
   readonly displayName = 'OneDrive';
   readonly icon = ONEDRIVE_ICON;
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async login(): Promise<AuthState> {
     throw new Error(
-      'OneDrive not yet implemented. Set VITE_ONEDRIVE_CLIENT_ID and implement PKCE flow.'
+      'OneDrive not yet implemented. Set VITE_ONEDRIVE_CLIENT_ID and implement PKCE flow.',
     );
   }
 
@@ -66,14 +68,17 @@ export class OneDriveProvider implements CloudProvider {
     return loadAuth();
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async uploadFile(_options: UploadOptions): Promise<UploadResult> {
     throw new Error('OneDrive not yet implemented');
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async downloadFile(_fileId: string): Promise<string> {
     throw new Error('OneDrive not yet implemented');
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async listFiles(_query?: string): Promise<CloudFile[]> {
     throw new Error('OneDrive not yet implemented');
   }

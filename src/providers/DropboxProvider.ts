@@ -21,7 +21,6 @@ import type {
   UploadResult,
 } from '@/types/cloud';
 
-const _DROPBOX_CLIENT_ID = import.meta.env.VITE_DROPBOX_CLIENT_ID as string ?? '';
 const STORAGE_KEY = 'auth_dropbox';
 
 const DROPBOX_ICON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -30,10 +29,12 @@ const DROPBOX_ICON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg
 
 async function loadAuth(): Promise<AuthState> {
   const result = await browser.storage.local.get(STORAGE_KEY);
-  return (result[STORAGE_KEY] as AuthState | undefined) ?? {
-    isAuthenticated: false,
-    provider: null,
-  };
+  return (
+    (result[STORAGE_KEY] as AuthState | undefined) ?? {
+      isAuthenticated: false,
+      provider: null,
+    }
+  );
 }
 
 async function saveAuth(state: AuthState): Promise<void> {
@@ -45,6 +46,7 @@ export class DropboxProvider implements CloudProvider {
   readonly displayName = 'Dropbox';
   readonly icon = DROPBOX_ICON;
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async login(): Promise<AuthState> {
     /**
      * Use browser.identity.launchWebAuthFlow with PKCE.
@@ -55,7 +57,7 @@ export class DropboxProvider implements CloudProvider {
      * See GoogleDriveProvider for a complete PKCE implementation to follow.
      */
     throw new Error(
-      'Dropbox not yet implemented. Set VITE_DROPBOX_CLIENT_ID and implement PKCE flow.'
+      'Dropbox not yet implemented. Set VITE_DROPBOX_CLIENT_ID and implement PKCE flow.',
     );
   }
 
@@ -72,14 +74,17 @@ export class DropboxProvider implements CloudProvider {
     return loadAuth();
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async uploadFile(_options: UploadOptions): Promise<UploadResult> {
     throw new Error('Dropbox not yet implemented');
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async downloadFile(_fileId: string): Promise<string> {
     throw new Error('Dropbox not yet implemented');
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async listFiles(_query?: string): Promise<CloudFile[]> {
     throw new Error('Dropbox not yet implemented');
   }

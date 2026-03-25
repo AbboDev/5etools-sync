@@ -1,12 +1,12 @@
 import type { CloudProvider, CloudProviderType } from '@/types/cloud';
 import { GoogleDriveProvider } from './GoogleDriveProvider';
-// import { DropboxProvider } from './DropboxProvider';
-// import { OneDriveProvider } from './OneDriveProvider';
+import { DropboxProvider } from './DropboxProvider';
+import { OneDriveProvider } from './OneDriveProvider';
 
-const providers: Map<CloudProviderType, CloudProvider> = new Map([
+const providers = new Map<CloudProviderType, CloudProvider>([
   ['google_drive', new GoogleDriveProvider()],
-  // ['dropbox',      new DropboxProvider()],
-  // ['onedrive',     new OneDriveProvider()],
+  ['dropbox', new DropboxProvider()],
+  ['onedrive', new OneDriveProvider()],
 ]);
 
 export function getProvider(type: CloudProviderType): CloudProvider {
@@ -19,11 +19,11 @@ export function getAllProviders(): CloudProvider[] {
   return Array.from(providers.values());
 }
 
-export function getProviderMeta(): Array<{
+export function getProviderMeta(): {
   type: CloudProviderType;
   displayName: string;
   icon: string;
-}> {
+}[] {
   return getAllProviders().map((p) => ({
     type: p.type,
     displayName: p.displayName,

@@ -1,34 +1,14 @@
 import '#imports';
-import type {
-  AuthState,
-  CloudProviderType,
-  ExtensionMessage,
-  MessageResponse,
-} from '@/types/cloud';
+import { onMessage, sendMessage } from '@/messaging';
+import type { CloudProviderType } from '@/types/cloud';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
 
   main() {
-    // ── Messaging ──────────────────────────────────────────────────────────────
+    const activeProvider: CloudProviderType = 'google_drive';
 
-    function sendMsg<T>(message: ExtensionMessage): Promise<T> {
-      return new Promise((resolve, reject) => {
-        browser.runtime.sendMessage(message, (response: MessageResponse<T>) => {
-          if (browser.runtime.lastError) {
-            reject(new Error(browser.runtime.lastError.message));
-            return;
-          }
-          if (!response?.success) {
-            reject(new Error(response?.error ?? 'Unknown error'));
-            return;
-          }
-          resolve(response.data as T);
-        });
-      });
-    }
-
-    // ── Styles ─────────────────────────────────────────────────────────────────
+    // ── Styles ─────────────────────────────────────────────────────────────
 
     function injectStyles(): void {
       if (document.getElementById('cse-styles')) return;
@@ -63,7 +43,10 @@ export default defineContentScript({
         }
         .cse-toast--error   { background: #c5221f; }
         .cse-toast--success { background: #188038; }
-        @keyframes cse-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes cse-fadein {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         .cse-modal-overlay {
           position: fixed; inset: 0; z-index: 2147483646;
           background: rgba(0,0,0,.5); display: flex;
@@ -99,28 +82,35 @@ export default defineContentScript({
       document.head.appendChild(style);
     }
 
-    // ── Toast ──────────────────────────────────────────────────────────────────
+    // ── Toast ─────────────────────────────────────────────────────────────
 
     function showToast(
       msg: string,
       type: 'success' | 'error' | 'info' = 'info',
-      duration = 3000
+      duration = 3000,
     ): void {
       const toast = document.createElement('div');
       toast.className = `cse-toast cse-toast--${type}`;
       toast.textContent = msg;
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), duration);
+      setTimeout(() => {
+        toast.remove();
+      }, duration);
     }
 
-    // ── File picker modal ──────────────────────────────────────────────────────
+    // ── File picker modal ─────────────────────────────────────────────────
 
-    interface FileItem { id: string; name: string; modifiedAt: string }
+    interface FileItem {
+      id: string;
+      name: string;
+      modifiedAt: string;
+    }
 
     function showFilePicker(files: FileItem[]): Promise<string | null> {
       return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'cse-modal-overlay';
+
         const modal = document.createElement('div');
         modal.className = 'cse-modal';
         modal.innerHTML = '<h3>Select a file to import</h3>';
@@ -136,7 +126,10 @@ export default defineContentScript({
                 <div class="cse-file-name">${f.name}</div>
                 <div class="cse-file-date">${new Date(f.modifiedAt).toLocaleDateString()}</div>
               </div>`;
-            item.addEventListener('click', () => { overlay.remove(); resolve(f.id); });
+            item.addEventListener('click', () => {
+              overlay.remove();
+              resolve(f.id);
+            });
             modal.appendChild(item);
           });
         }
@@ -144,17 +137,23 @@ export default defineContentScript({
         const closeBtn = document.createElement('button');
         closeBtn.className = 'cse-modal-close';
         closeBtn.textContent = 'Cancel';
-        closeBtn.addEventListener('click', () => { overlay.remove(); resolve(null); });
+        closeBtn.addEventListener('click', () => {
+          overlay.remove();
+          resolve(null);
+        });
         modal.appendChild(closeBtn);
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
         overlay.addEventListener('click', (e) => {
-          if (e.target === overlay) { overlay.remove(); resolve(null); }
+          if (e.target === overlay) {
+            overlay.remove();
+            resolve(null);
+          }
         });
       });
     }
 
-    // ── Widget ─────────────────────────────────────────────────────────────────
+    // ── Widget helpers ────────────────────────────────────────────────────
 
     const ICON_SMALL = `<svg class="cse-icon" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
       <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#fff"/>
@@ -162,112 +161,114 @@ export default defineContentScript({
       <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#fff"/>
     </svg>`;
 
-    let activeProvider: CloudProviderType = 'google_drive';
-
     function setLoading(btn: HTMLButtonElement, loading: boolean, restoreHTML?: string): void {
       btn.disabled = loading;
       if (loading) {
         btn.innerHTML = `<div class="cse-spinner"></div><span>Loading…</span>`;
-      } else if (restoreHTML) {
+      } else if (restoreHTML !== undefined) {
         btn.innerHTML = restoreHTML;
       }
     }
+
+    // ── Widget build ──────────────────────────────────────────────────────
 
     async function createWidget(): Promise<void> {
       if (document.getElementById('cse-widget')) return;
       injectStyles();
 
-      let authState: AuthState;
+      let isAuthenticated = false;
       try {
-        authState = await sendMsg<AuthState>({ type: 'AUTH_GET_STATE', provider: activeProvider });
+        const state = await sendMessage('authGetState', activeProvider);
+        isAuthenticated = state.isAuthenticated;
       } catch {
-        authState = { isAuthenticated: false, provider: null };
+        // background not ready yet — show login button
       }
 
       const widget = document.createElement('div');
       widget.id = 'cse-widget';
 
-      // Login button (shown when not authenticated)
-      if (!authState.isAuthenticated) {
+      // Login button (unauthenticated only)
+      if (!isAuthenticated) {
+        const loginHTML = `${ICON_SMALL}<span>Login to Drive</span>`;
         const loginBtn = document.createElement('button');
         loginBtn.className = 'cse-btn cse-btn--auth';
-        loginBtn.innerHTML = `${ICON_SMALL}<span>Login to Drive</span>`;
+        loginBtn.innerHTML = loginHTML;
         loginBtn.addEventListener('click', async () => {
           setLoading(loginBtn, true);
           try {
-            await sendMsg({ type: 'AUTH_LOGIN', provider: activeProvider });
+            await sendMessage('authLogin', activeProvider);
             showToast('✓ Logged in!', 'success');
             widget.remove();
             await createWidget();
           } catch (err) {
             showToast(`Login failed: ${(err as Error).message}`, 'error');
-            setLoading(loginBtn, false, `${ICON_SMALL}<span>Login to Drive</span>`);
+            setLoading(loginBtn, false, loginHTML);
           }
         });
         widget.appendChild(loginBtn);
       }
 
       // Export button
+      const exportHTML = `${ICON_SMALL}<span>Export JSON</span>`;
       const exportBtn = document.createElement('button');
       exportBtn.className = 'cse-btn cse-btn--export';
-      exportBtn.innerHTML = `${ICON_SMALL}<span>Export JSON</span>`;
-      exportBtn.disabled = !authState.isAuthenticated;
+      exportBtn.innerHTML = exportHTML;
+      exportBtn.disabled = !isAuthenticated;
       exportBtn.addEventListener('click', async () => {
         setLoading(exportBtn, true);
         try {
-          const data = {
-            url: location.href,
-            title: document.title,
-            exportedAt: new Date().toISOString(),
-            payload: {} as Record<string, unknown>, // TODO: replace with real data
-          };
-          const result = await sendMsg<{ fileName: string }>({
-            type: 'EXPORT_JSON',
+          const result = await sendMessage('exportJson', {
             provider: activeProvider,
-            payload: { fileName: `export_${Date.now()}.json`, data },
+            fileName: `export_${Date.now().toString()}.json`,
+            // TODO: replace payload with real page data
+            data: {
+              url: location.href,
+              title: document.title,
+              exportedAt: new Date().toISOString(),
+            },
           });
           showToast(`✓ Exported: ${result.fileName}`, 'success');
         } catch (err) {
           showToast(`Export failed: ${(err as Error).message}`, 'error');
         } finally {
-          setLoading(exportBtn, false, `${ICON_SMALL}<span>Export JSON</span>`);
+          setLoading(exportBtn, false, exportHTML);
         }
       });
 
       // Import button
+      const importHTML = `${ICON_SMALL}<span>Import JSON</span>`;
       const importBtn = document.createElement('button');
       importBtn.className = 'cse-btn cse-btn--import';
-      importBtn.innerHTML = `${ICON_SMALL}<span>Import JSON</span>`;
-      importBtn.disabled = !authState.isAuthenticated;
+      importBtn.innerHTML = importHTML;
+      importBtn.disabled = !isAuthenticated;
       importBtn.addEventListener('click', async () => {
         setLoading(importBtn, true);
-        let files: FileItem[] = [];
+        let files: { id: string; name: string; modifiedAt: string }[] = [];
         try {
-          files = await sendMsg<FileItem[]>({ type: 'LIST_FILES', provider: activeProvider });
+          files = await sendMessage('listFiles', activeProvider);
         } catch (err) {
           showToast(`Could not list files: ${(err as Error).message}`, 'error');
-          setLoading(importBtn, false, `${ICON_SMALL}<span>Import JSON</span>`);
+          setLoading(importBtn, false, importHTML);
           return;
         }
-        setLoading(importBtn, false, `${ICON_SMALL}<span>Import JSON</span>`);
+        setLoading(importBtn, false, importHTML);
 
         const fileId = await showFilePicker(files);
         if (!fileId) return;
 
         setLoading(importBtn, true);
         try {
-          const data = await sendMsg<Record<string, unknown>>({
-            type: 'IMPORT_JSON',
+          const data = await sendMessage('importJson', {
             provider: activeProvider,
-            payload: { fileId },
+            fileId,
           });
-          // Dispatch a custom DOM event so host pages can react
+          // Dispatch a DOM event so the host page can consume the data
           document.dispatchEvent(new CustomEvent('cse:import', { detail: data, bubbles: true }));
           showToast('✓ Import complete — cse:import event dispatched', 'success', 4000);
         } catch (err) {
           showToast(`Import failed: ${(err as Error).message}`, 'error');
         } finally {
-          setLoading(importBtn, false, `${ICON_SMALL}<span>Import JSON</span>`);
+          setLoading(importBtn, false, importHTML);
         }
       });
 
@@ -276,20 +277,19 @@ export default defineContentScript({
       document.body.appendChild(widget);
     }
 
-    // ── Init ───────────────────────────────────────────────────────────────────
+    // ── Listen for auth state changes broadcast from popup ────────────────
 
-    // Rebuild widget when auth state changes (triggered from popup)
-    browser.runtime.onMessage.addListener((msg: ExtensionMessage) => {
-      if (msg.type === 'AUTH_LOGIN' || msg.type === 'AUTH_LOGOUT') {
-        document.getElementById('cse-widget')?.remove();
-        createWidget();
-      }
+    onMessage('authStateChanged', () => {
+      document.getElementById('cse-widget')?.remove();
+      void createWidget();
     });
 
+    // ── Init ─────────────────────────────────────────────────────────────
+
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', createWidget);
+      document.addEventListener('DOMContentLoaded', () => void createWidget());
     } else {
-      createWidget();
+      void createWidget();
     }
   },
 });
