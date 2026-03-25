@@ -1,4 +1,5 @@
 import '#imports';
+import './style.css';
 import { onMessage, sendMessage } from '@/messaging';
 import type { CloudProviderType } from '@/types/cloud';
 
@@ -7,80 +8,6 @@ export default defineContentScript({
 
   main() {
     const activeProvider: CloudProviderType = 'google_drive';
-
-    // ── Styles ─────────────────────────────────────────────────────────────
-
-    function injectStyles(): void {
-      if (document.getElementById('cse-styles')) return;
-      const style = document.createElement('style');
-      style.id = 'cse-styles';
-      style.textContent = `
-        #cse-widget {
-          position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;
-          display: flex; flex-direction: column; gap: 8px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        .cse-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 10px 16px; border: none; border-radius: 24px; cursor: pointer;
-          font-size: 13px; font-weight: 600; color: #fff;
-          box-shadow: 0 2px 8px rgba(0,0,0,.25);
-          transition: transform .15s, box-shadow .15s, opacity .15s;
-          white-space: nowrap;
-        }
-        .cse-btn:hover  { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.3); }
-        .cse-btn:active { transform: translateY(0); }
-        .cse-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-        .cse-btn--export { background: #1a73e8; }
-        .cse-btn--import { background: #188038; }
-        .cse-btn--auth   { background: #ea4335; }
-        .cse-icon { width: 16px; height: 16px; flex-shrink: 0; }
-        .cse-toast {
-          position: fixed; bottom: 100px; right: 24px; z-index: 2147483647;
-          padding: 10px 16px; border-radius: 8px; background: #202124; color: #fff;
-          font-size: 13px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          box-shadow: 0 4px 12px rgba(0,0,0,.3); animation: cse-fadein .2s ease; max-width: 300px;
-        }
-        .cse-toast--error   { background: #c5221f; }
-        .cse-toast--success { background: #188038; }
-        @keyframes cse-fadein {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .cse-modal-overlay {
-          position: fixed; inset: 0; z-index: 2147483646;
-          background: rgba(0,0,0,.5); display: flex;
-          align-items: center; justify-content: center;
-        }
-        .cse-modal {
-          background: #fff; border-radius: 12px; padding: 24px;
-          width: 380px; max-height: 500px; overflow-y: auto;
-          box-shadow: 0 8px 32px rgba(0,0,0,.3);
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        .cse-modal h3 { margin: 0 0 16px; font-size: 16px; color: #202124; }
-        .cse-file-item {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px; border-radius: 8px; cursor: pointer; transition: background .15s;
-        }
-        .cse-file-item:hover { background: #f1f3f4; }
-        .cse-file-name { font-size: 13px; color: #202124; flex: 1; }
-        .cse-file-date { font-size: 11px; color: #5f6368; }
-        .cse-modal-close {
-          margin-top: 16px; width: 100%; padding: 10px;
-          border: 1px solid #dadce0; border-radius: 8px;
-          background: none; cursor: pointer; font-size: 13px; color: #5f6368;
-        }
-        .cse-modal-close:hover { background: #f1f3f4; }
-        .cse-spinner {
-          width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3);
-          border-top-color: #fff; border-radius: 50%;
-          animation: cse-spin .6s linear infinite; flex-shrink: 0;
-        }
-        @keyframes cse-spin { to { transform: rotate(360deg); } }
-      `;
-      document.head.appendChild(style);
-    }
 
     // ── Toast ─────────────────────────────────────────────────────────────
 
@@ -116,7 +43,7 @@ export default defineContentScript({
         modal.innerHTML = '<h3>Select a file to import</h3>';
 
         if (files.length === 0) {
-          modal.innerHTML += '<p style="color:#5f6368;font-size:13px;">No JSON files found.</p>';
+          modal.innerHTML += '<p class="cse-file-empty">No JSON files found.</p>';
         } else {
           files.forEach((f) => {
             const item = document.createElement('div');
@@ -174,8 +101,6 @@ export default defineContentScript({
 
     async function createWidget(): Promise<void> {
       if (document.getElementById('cse-widget')) return;
-      injectStyles();
-
       let isAuthenticated = false;
       try {
         const state = await sendMessage('authGetState', activeProvider);
